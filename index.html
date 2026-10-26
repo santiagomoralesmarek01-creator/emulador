@@ -121,14 +121,13 @@
       overflow: auto;
     }
     .escala { flex: none; }
-    .escala .telefono { transform-origin: top left; }
     .telefono {
       position: relative;
       background: var(--marco);
       border-radius: 54px;
       padding: 14px;
       box-shadow: var(--sombra), inset 0 0 0 2px var(--marco-brillo);
-      transition: width .3s ease, height .3s ease, border-radius .3s ease, transform .25s ease;
+      transition: width .3s ease, height .3s ease, border-radius .3s ease;
     }
     .telefono.tablet { border-radius: 36px; padding: 22px; }
     .telefono.chico { border-radius: 40px; padding: 60px 14px; }
@@ -307,7 +306,7 @@
 
     <div class="info">
       <span id="medidas"></span>
-      <span>Zoom: <button class="icono" id="menos" style="padding:2px 9px">−</button> <span id="zoom">100%</span> <button class="icono" id="mas" style="padding:2px 9px">+</button></span>
+      <span>Zoom: <button class="icono" id="menos" style="padding:2px 9px">−</button> <span id="zoom">100%</span> <button class="icono" id="mas" style="padding:2px 9px">+</button> <button class="icono" id="real" style="padding:2px 9px" title="Tamaño real">1:1</button> <button class="icono" id="ajustar" style="padding:2px 9px" title="Ajustar a la ventana">Ajustar</button></span>
     </div>
     <div class="recientes" id="recientes"></div>
     <p class="aviso">Algunos sitios (Google, Instagram, bancos…) bloquean que se los muestre dentro de otra página. Si la pantalla queda en blanco o con error, es por eso: usá ↗ para abrirlo aparte.</p>
@@ -338,7 +337,7 @@
     const estado = {
       dispositivo: leer('emu.dispositivo', 'iphone15'),
       horizontal: false,
-      zoom: null, // null = automático
+      zoom: leer('emu.zoom', null), // null = ajustar a la ventana
       url: '',
       recientes: leer('emu.recientes', []),
     };
@@ -372,12 +371,13 @@
       $('carga').style.top = `${barraEstado}px`;
 
       const disponibleAncho = window.innerWidth - 32;
-      const disponibleAlto = window.innerHeight - document.querySelector('.barra').offsetHeight - 150;
+      // Sólo se reserva lugar para la línea de medidas: el aviso y los recientes quedan debajo, con scroll.
+      const disponibleAlto = window.innerHeight - document.querySelector('.barra').offsetHeight - 90;
       const auto = Math.min(1, disponibleAncho / (ancho + bordeHorizontal * 2), disponibleAlto / (alto + barraEstado + bordeVertical * 2));
-      const zoom = estado.zoom ?? Math.max(0.3, auto);
-      telefono.style.transform = `scale(${zoom})`;
-      escala.style.width = `${(ancho + bordeHorizontal * 2) * zoom}px`;
-      escala.style.height = `${(alto + barraEstado + bordeVertical * 2) * zoom}px`;
+      // Se redondea para que el ancho interno quede exacto en píxeles (ej: 393 y no 392).
+      const zoom = Math.round(ancho * (estado.zoom ?? Math.max(0.3, auto))) / ancho;
+      // zoom (y no transform: scale) hace que el sitio se dibuje al tamaño final, nítido.
+      telefono.style.zoom = zoom;
       $('zoom').textContent = `${Math.round(zoom * 100)}%`;
       $('medidas').textContent = `${d.nombre} · ${ancho}×${alto} px${estado.horizontal ? ' · horizontal' : ''}`;
     }
@@ -441,8 +441,12 @@
     $('girar').onclick = () => { estado.horizontal = !estado.horizontal; dibujar(); };
     $('recargar').onclick = () => { if (estado.url) cargar(estado.url); };
     $('abrir').onclick = () => { if (estado.url) window.open(estado.url, '_blank', 'noopener'); };
-    $('mas').onclick = () => { estado.zoom = Math.min(1.5, (estado.zoom ?? parseFloat($('zoom').textContent) / 100) + 0.1); dibujar(); };
-    $('menos').onclick = () => { estado.zoom = Math.max(0.3, (estado.zoom ?? parseFloat($('zoom').textContent) / 100) - 0.1); dibujar(); };
+    const fijarZoom = (z) => { estado.zoom = z; guardar('emu.zoom', z); dibujar(); };
+    const zoomActual = () => parseFloat($('zoom').textContent) / 100;
+    $('mas').onclick = () => fijarZoom(Math.min(1.5, zoomActual() + 0.1));
+    $('menos').onclick = () => fijarZoom(Math.max(0.3, zoomActual() - 0.1));
+    $('real').onclick = () => fijarZoom(1);
+    $('ajustar').onclick = () => fijarZoom(null);
     $('tema').onclick = () => {
       const oscuro = document.documentElement.dataset.theme
         ? document.documentElement.dataset.theme === 'dark'

@@ -171,6 +171,12 @@
     }
     .telefono.android .isla { width: 12px; height: 12px; top: 16px; border-radius: 50%; }
     .telefono.tablet .isla, .telefono.chico .isla { display: none; }
+    /* Horizontal: la isla (o la cámara) pasa al costado izquierdo y queda vertical. */
+    .telefono.horizontal .isla { top: 50%; left: 11px; transform: translateY(-50%); width: 30px; height: 110px; }
+    .telefono.horizontal.android .isla { left: 14px; width: 12px; height: 12px; }
+    .telefono.horizontal.iphone .estado { display: none; }
+    .telefono.horizontal.android .estado { height: 28px; font-size: 12px; padding: 0 18px; }
+    .telefono.horizontal .pantalla { background: #2a2a2e; }
     .telefono.chico .estado { height: 22px; font-size: 12px; padding: 0 10px; }
     .telefono.tablet .estado { height: 28px; font-size: 12px; padding: 0 18px; }
     .boton-inicio {
@@ -360,9 +366,23 @@
       const borde = d.tipo === 'tablet' ? 22 : 14;
       const bordeVertical = d.tipo === 'chico' ? (estado.horizontal ? 14 : 60) : borde;
       const bordeHorizontal = d.tipo === 'chico' && estado.horizontal ? 60 : borde;
-      const barraEstado = d.tipo === 'chico' ? 22 : d.tipo === 'tablet' ? 28 : 44;
+      const horizontalConIsla = estado.horizontal && (d.tipo === 'iphone' || d.tipo === 'android');
+      // En horizontal el iPhone oculta la barra de estado; Android la deja arriba, más baja.
+      const barraEstado = horizontalConIsla
+        ? (d.tipo === 'iphone' ? 0 : 28)
+        : d.tipo === 'chico' ? 22 : d.tipo === 'tablet' ? 28 : 44;
+      // Márgenes laterales para que la isla no tape el sitio, como hace el navegador del teléfono.
+      const margenIzq = horizontalConIsla ? (d.tipo === 'iphone' ? 48 : 32) : 0;
+      const margenDer = horizontalConIsla && d.tipo === 'iphone' ? 48 : 0;
 
-      telefono.className = `telefono ${d.tipo}`;
+      telefono.className = `telefono ${d.tipo}${estado.horizontal ? ' horizontal' : ''}`;
+      const pantalla = telefono.querySelector('.pantalla');
+      pantalla.style.paddingLeft = `${margenIzq}px`;
+      pantalla.style.paddingRight = `${margenDer}px`;
+      for (const capa of [$('vacio'), $('carga')]) {
+        capa.style.left = `${margenIzq}px`;
+        capa.style.right = `${margenDer}px`;
+      }
       telefono.style.padding = `${bordeVertical}px ${bordeHorizontal}px`;
       // El ancho del iframe es el ancho real del dispositivo: así el sitio aplica sus media queries.
       telefono.style.width = `${ancho + bordeHorizontal * 2}px`;
@@ -379,7 +399,8 @@
       // zoom (y no transform: scale) hace que el sitio se dibuje al tamaño final, nítido.
       telefono.style.zoom = zoom;
       $('zoom').textContent = `${Math.round(zoom * 100)}%`;
-      $('medidas').textContent = `${d.nombre} · ${ancho}×${alto} px${estado.horizontal ? ' · horizontal' : ''}`;
+      $('medidas').textContent = `${d.nombre} · ${ancho}×${alto} px${estado.horizontal ? ' · horizontal' : ''}`
+        + (horizontalConIsla ? ` · el sitio ve ${ancho - margenIzq - margenDer}×${alto} px` : '');
     }
 
     function cargar(url) {
